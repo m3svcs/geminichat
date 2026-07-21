@@ -2,41 +2,37 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Gemini Chat</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
-    html {
+    /*
+      KEY FIX: No overflow restrictions on html/body.
+      Let the browser fully control scroll/pan/zoom.
+    */
+    html, body {
       height: 100%;
-      overflow: hidden;
+      touch-action: auto;        /* allow all gestures */
+      -webkit-overflow-scrolling: touch;
     }
 
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       background: #0f0f13;
       color: #e4e4e7;
-      height: 100%;
+    }
+
+    /*
+      App wrapper uses height from JS.
+      No overflow hidden — ever.
+    */
+    .app {
       display: flex;
       flex-direction: column;
       max-width: 800px;
       margin: 0 auto;
-      overflow: hidden;
-      /* Critical: use fixed position layout */
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-    }
-
-    /* Centering for desktop */
-    @media (min-width: 801px) {
-      body {
-        left: 50%;
-        transform: translateX(-50%);
-        width: 800px;
-      }
+      min-height: 100%;
     }
 
     /* HEADER */
@@ -51,38 +47,19 @@
       min-height: 44px;
     }
     .header h1 { font-size: 16px; white-space: nowrap; }
-    .header-right {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
+    .header-right { display: flex; align-items: center; gap: 8px; }
     .status-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: #22c55e;
-      flex-shrink: 0;
+      width: 8px; height: 8px; border-radius: 50%;
+      background: #22c55e; flex-shrink: 0;
     }
-    .status-dot.busy {
-      background: #f59e0b;
-      animation: pulse 1s ease-in-out infinite;
-    }
+    .status-dot.busy { background: #f59e0b; animation: pulse 1s ease-in-out infinite; }
     @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
-    .status-label {
-      font-size: 12px;
-      color: #a1a1aa;
-      white-space: nowrap;
-    }
+    .status-label { font-size: 12px; color: #a1a1aa; white-space: nowrap; }
     .status-label.busy { color: #f59e0b; }
     .btn-clear {
-      background: transparent;
-      border: 1px solid #2e2e3e;
-      color: #a1a1aa;
-      padding: 5px 10px;
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 12px;
-      -webkit-tap-highlight-color: transparent;
+      background: transparent; border: 1px solid #2e2e3e;
+      color: #a1a1aa; padding: 5px 10px; border-radius: 6px;
+      cursor: pointer; font-size: 12px;
     }
     .btn-clear:active { background: #2e2e3e; }
 
@@ -98,46 +75,25 @@
       flex-shrink: 0;
     }
     .url-row {
-      display: flex;
-      gap: 6px;
-      flex: 1;
-      min-width: 0;
-      align-items: center;
+      display: flex; gap: 6px; flex: 1;
+      min-width: 0; align-items: center;
     }
     .url-row label {
-      font-size: 11px;
-      color: #71717a;
-      font-weight: bold;
-      white-space: nowrap;
+      font-size: 11px; color: #71717a;
+      font-weight: bold; white-space: nowrap;
     }
     .url-row input[type="text"] {
-      background: #0f0f13;
-      border: 1px solid #2e2e3e;
-      color: #e4e4e7;
-      padding: 7px 8px;
-      border-radius: 6px;
-      font-size: 12px;
-      font-family: monospace;
-      flex: 1;
-      min-width: 0;
-      -webkit-appearance: none;
+      background: #0f0f13; border: 1px solid #2e2e3e;
+      color: #e4e4e7; padding: 7px 8px; border-radius: 6px;
+      font-size: 12px; font-family: monospace;
+      flex: 1; min-width: 0;
     }
     .url-row input[type="text"]:focus { outline: none; border-color: #6366f1; }
     .chk-wrap {
-      display: flex;
-      align-items: center;
-      gap: 4px;
-      font-size: 11px;
-      color: #a1a1aa;
-      cursor: pointer;
-      -webkit-tap-highlight-color: transparent;
-      white-space: nowrap;
+      display: flex; align-items: center; gap: 4px;
+      font-size: 11px; color: #a1a1aa; cursor: pointer; white-space: nowrap;
     }
-    .chk-wrap input[type="checkbox"] {
-      accent-color: #6366f1;
-      width: 15px;
-      height: 15px;
-    }
+    .chk-wrap input[type="checkbox"] { accent-color: #6366f1; width: 15px; height: 15px; }
 
     /* CHAT */
     .chat {
@@ -148,146 +104,72 @@
       flex-direction: column;
       gap: 10px;
       -webkit-overflow-scrolling: touch;
-      overscroll-behavior: contain;
-      min-height: 0; /* critical for flex shrink */
+      min-height: 0;
+      /* Do NOT restrict overscroll on any axis */
     }
 
     /* WELCOME */
     .welcome {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      text-align: center;
-      gap: 8px;
-      padding: 16px;
+      flex: 1; display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      text-align: center; gap: 8px; padding: 16px;
     }
     .welcome .ic { font-size: 32px; opacity: 0.5; }
     .welcome h2 { font-size: 17px; }
-    .welcome p {
-      color: #71717a;
-      font-size: 13px;
-      max-width: 300px;
-      line-height: 1.4;
-    }
+    .welcome p { color: #71717a; font-size: 13px; max-width: 300px; line-height: 1.4; }
     .qbtns {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
-      justify-content: center;
-      margin-top: 8px;
+      display: flex; flex-wrap: wrap; gap: 6px;
+      justify-content: center; margin-top: 8px;
     }
     .qbtns button {
-      background: #252536;
-      border: 1px solid #2e2e3e;
-      color: #a1a1aa;
-      padding: 7px 12px;
-      border-radius: 14px;
-      font-size: 12px;
-      cursor: pointer;
-      -webkit-tap-highlight-color: transparent;
+      background: #252536; border: 1px solid #2e2e3e; color: #a1a1aa;
+      padding: 7px 12px; border-radius: 14px; font-size: 12px; cursor: pointer;
     }
     .qbtns button:active { background: #2e2e3e; }
 
     /* MESSAGES */
-    .m {
-      display: flex;
-      gap: 8px;
-      max-width: 90%;
-      animation: fi 0.2s ease;
-    }
-    @keyframes fi {
-      from { opacity: 0; transform: translateY(4px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
+    .m { display: flex; gap: 8px; max-width: 90%; animation: fi 0.2s ease; }
+    @keyframes fi { from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:translateY(0)} }
     .m.u { align-self: flex-end; flex-direction: row-reverse; }
     .m .av {
-      width: 26px;
-      height: 26px;
-      border-radius: 6px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 11px;
-      flex-shrink: 0;
+      width: 26px; height: 26px; border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 11px; flex-shrink: 0;
     }
     .m.u .av { background: #2d5aa0; }
     .m.b .av { background: linear-gradient(135deg, #6366f1, #a855f7); }
     .m .bb {
-      padding: 9px 11px;
-      border-radius: 10px;
-      font-size: 14px;
-      line-height: 1.5;
-      word-wrap: break-word;
-      overflow-wrap: break-word;
+      padding: 9px 11px; border-radius: 10px;
+      font-size: 14px; line-height: 1.5;
+      word-wrap: break-word; overflow-wrap: break-word;
     }
     .m.u .bb { background: #2d5aa0; border-bottom-right-radius: 3px; }
-    .m.b .bb {
-      background: #1e1e2e;
-      border: 1px solid #2e2e3e;
-      border-bottom-left-radius: 3px;
-    }
+    .m.b .bb { background: #1e1e2e; border: 1px solid #2e2e3e; border-bottom-left-radius: 3px; }
 
-    /* Markdown */
     .bb p { margin-bottom: 5px; }
     .bb p:last-child { margin-bottom: 0; }
     .bb pre {
-      background: #0d0d14;
-      border: 1px solid #2e2e3e;
-      border-radius: 6px;
-      padding: 8px;
-      overflow-x: auto;
-      margin: 5px 0;
-      -webkit-overflow-scrolling: touch;
+      background: #0d0d14; border: 1px solid #2e2e3e;
+      border-radius: 6px; padding: 8px; overflow-x: auto; margin: 5px 0;
     }
     .bb code { font-family: monospace; font-size: 12px; }
-    .bb p code, .bb li code {
-      background: rgba(99,102,241,0.15);
-      padding: 1px 4px;
-      border-radius: 3px;
-    }
+    .bb p code, .bb li code { background: rgba(99,102,241,0.15); padding: 1px 4px; border-radius: 3px; }
     .bb pre code { background: none; padding: 0; }
     .bb strong { color: #f4f4f5; }
     .bb em { color: #a1a1aa; }
     .bb ul, .bb ol { padding-left: 16px; margin: 4px 0; }
     .bb li { margin-bottom: 2px; }
-    .bb blockquote {
-      border-left: 3px solid #6366f1;
-      padding-left: 8px;
-      margin: 4px 0;
-      color: #a1a1aa;
-    }
+    .bb blockquote { border-left: 3px solid #6366f1; padding-left: 8px; margin: 4px 0; color: #a1a1aa; }
     .bb h1,.bb h2,.bb h3 { margin: 6px 0 3px; }
-    .bb h1 { font-size: 16px; }
-    .bb h2 { font-size: 15px; }
-    .bb h3 { font-size: 14px; }
-
+    .bb h1 { font-size: 16px; } .bb h2 { font-size: 15px; } .bb h3 { font-size: 14px; }
     .cb {
-      display: flex;
-      justify-content: space-between;
-      background: #252536;
-      padding: 4px 8px;
-      border-radius: 6px 6px 0 0;
-      margin-top: 5px;
-      font-size: 11px;
-      color: #71717a;
-      font-family: monospace;
+      display: flex; justify-content: space-between; background: #252536;
+      padding: 4px 8px; border-radius: 6px 6px 0 0; margin-top: 5px;
+      font-size: 11px; color: #71717a; font-family: monospace;
     }
-    .cb + pre {
-      margin-top: 0;
-      border-top-left-radius: 0;
-      border-top-right-radius: 0;
-    }
-    .cb button {
-      background: none;
-      border: none;
-      color: #71717a;
-      cursor: pointer;
-      font-size: 11px;
-    }
+    .cb + pre { margin-top: 0; border-top-left-radius: 0; border-top-right-radius: 0; }
+    .cb button { background: none; border: none; color: #71717a; cursor: pointer; font-size: 11px; }
 
-    /* Typing */
     .tp { display: flex; gap: 4px; padding: 5px 0; }
     .tp span {
       width: 6px; height: 6px; border-radius: 50%; background: #71717a;
@@ -295,102 +177,57 @@
     }
     .tp span:nth-child(2) { animation-delay: 0.2s; }
     .tp span:nth-child(3) { animation-delay: 0.4s; }
-    @keyframes bn {
-      0%,60%,100% { transform: translateY(0); opacity: 0.4; }
-      30% { transform: translateY(-5px); opacity: 1; }
-    }
+    @keyframes bn { 0%,60%,100%{transform:translateY(0);opacity:0.4} 30%{transform:translateY(-5px);opacity:1} }
 
-    /* INPUT BAR - pinned to bottom */
+    /* INPUT BAR */
     .ibar {
       padding: 8px 14px;
       background: #1a1a24;
       border-top: 1px solid #2e2e3e;
       flex-shrink: 0;
-      /* Safe area for phones with bottom gestures */
-      padding-bottom: 8px;
     }
     @supports (padding-bottom: env(safe-area-inset-bottom)) {
-      .ibar {
-        padding-bottom: calc(8px + env(safe-area-inset-bottom));
-      }
+      .ibar { padding-bottom: calc(8px + env(safe-area-inset-bottom)); }
     }
     .irow {
-      display: flex;
-      gap: 8px;
-      background: #0f0f13;
-      border: 1px solid #2e2e3e;
-      border-radius: 10px;
-      padding: 6px 10px;
-      align-items: flex-end;
+      display: flex; gap: 8px; background: #0f0f13;
+      border: 1px solid #2e2e3e; border-radius: 10px;
+      padding: 6px 10px; align-items: flex-end;
     }
     .irow:focus-within { border-color: #6366f1; }
     .irow textarea {
-      flex: 1;
-      background: none;
-      border: none;
-      color: #e4e4e7;
-      font-family: inherit;
-      font-size: 16px; /* 16px prevents iOS zoom */
-      resize: none;
-      min-height: 24px;
-      max-height: 80px;
-      line-height: 1.4;
-      -webkit-appearance: none;
-      padding: 2px 0;
+      flex: 1; background: none; border: none; color: #e4e4e7;
+      font-family: inherit; font-size: 16px;
+      resize: none; min-height: 24px; max-height: 80px;
+      line-height: 1.4; padding: 2px 0;
     }
     .irow textarea:focus { outline: none; }
     .irow textarea::placeholder { color: #71717a; }
     .sbtn {
-      width: 36px;
-      height: 36px;
-      background: #6366f1;
-      border: none;
-      border-radius: 8px;
-      color: #fff;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      width: 36px; height: 36px; background: #6366f1; border: none;
+      border-radius: 8px; color: #fff; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
       flex-shrink: 0;
-      -webkit-tap-highlight-color: transparent;
     }
     .sbtn:active { background: #818cf8; }
     .sbtn:disabled { opacity: 0.3; }
     .sbtn svg { width: 16px; height: 16px; }
 
-    /* Toast */
     .toast {
-      position: fixed;
-      top: 12px;
-      left: 50%;
-      transform: translateX(-50%);
-      padding: 8px 16px;
-      border-radius: 8px;
-      font-size: 13px;
-      z-index: 999;
-      animation: si 0.2s ease;
-      max-width: 90vw;
-      text-align: center;
+      position: fixed; top: 12px; left: 50%; transform: translateX(-50%);
+      padding: 8px 16px; border-radius: 8px; font-size: 13px;
+      z-index: 999; animation: si 0.2s ease;
+      max-width: 90vw; text-align: center;
     }
-    .toast.er {
-      background: #1a0505;
-      border: 1px solid #ef4444;
-      color: #ef4444;
-    }
-    .toast.ok {
-      background: #051a0a;
-      border: 1px solid #22c55e;
-      color: #22c55e;
-    }
-    @keyframes si {
-      from { opacity: 0; transform: translateX(-50%) translateY(-8px); }
-      to { opacity: 1; transform: translateX(-50%) translateY(0); }
-    }
+    .toast.er { background: #1a0505; border: 1px solid #ef4444; color: #ef4444; }
+    .toast.ok { background: #051a0a; border: 1px solid #22c55e; color: #22c55e; }
+    @keyframes si { from{opacity:0;transform:translateX(-50%) translateY(-8px)} to{opacity:1;transform:translateX(-50%) translateY(0)} }
   </style>
 </head>
 <body>
 
-  <!-- HEADER -->
+<div class="app" id="app">
+
   <div class="header">
     <h1>✦ Gemini Chat</h1>
     <div class="header-right">
@@ -400,23 +237,19 @@
     </div>
   </div>
 
-  <!-- CONFIG -->
   <div class="config">
     <div class="url-row">
       <label>URL:</label>
       <input type="text" id="iUrl"
         placeholder="https://old-tooth-d055.m3svcs.workers.dev"
-        autocomplete="off"
-        autocapitalize="off"
-        autocorrect="off"
-        spellcheck="false">
+        autocomplete="off" autocapitalize="off"
+        autocorrect="off" spellcheck="false">
     </div>
     <label class="chk-wrap">
       <input type="checkbox" id="cStr" checked> Stream
     </label>
   </div>
 
-  <!-- CHAT -->
   <div class="chat" id="chat">
     <div class="welcome" id="wel">
       <div class="ic">✦</div>
@@ -430,18 +263,20 @@
     </div>
   </div>
 
-  <!-- INPUT BAR - always visible -->
   <div class="ibar" id="ibar">
     <div class="irow">
       <textarea id="iMsg" placeholder="Type a message..." rows="1"></textarea>
       <button class="sbtn" id="bSnd" type="button">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+          stroke-linecap="round" stroke-linejoin="round">
           <line x1="22" y1="2" x2="11" y2="13"></line>
           <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
         </svg>
       </button>
     </div>
   </div>
+
+</div>
 
 <script>
 (function() {
@@ -451,6 +286,7 @@
     var busy = false;
     var ac = null;
 
+    var app = document.getElementById('app');
     var chat = document.getElementById('chat');
     var wel = document.getElementById('wel');
     var iMsg = document.getElementById('iMsg');
@@ -460,7 +296,18 @@
     var cStr = document.getElementById('cStr');
     var sDot = document.getElementById('sDot');
     var sLabel = document.getElementById('sLabel');
-    var ibar = document.getElementById('ibar');
+
+    /*
+      Height manager:
+      Sets app height to visible viewport.
+      Does NOT use overflow:hidden anywhere.
+    */
+    function setH() {
+      var h = window.innerHeight;
+      app.style.height = h + 'px';
+    }
+    setH();
+    window.addEventListener('resize', setH);
 
     // Load
     iUrl.value = ls('gc_u') || '';
@@ -469,7 +316,6 @@
       var raw = ls('gc_m');
       if (raw) { var p = JSON.parse(raw); if (Array.isArray(p)) sm = p; }
     } catch(e) {}
-
     if (sm.length > 0) {
       msgs = sm;
       wel.style.display = 'none';
@@ -493,10 +339,10 @@
       return url;
     }
 
-    function setStatus(isBusy) {
-      busy = isBusy;
-      bSnd.disabled = isBusy;
-      if (isBusy) {
+    function setStatus(v) {
+      busy = v;
+      bSnd.disabled = v;
+      if (v) {
         sDot.className = 'status-dot busy';
         sLabel.className = 'status-label busy';
         sLabel.textContent = 'Thinking...';
@@ -507,11 +353,9 @@
       }
     }
 
-    // URL save
     iUrl.addEventListener('input', function() { ls('gc_u', iUrl.value.trim()); });
     iUrl.addEventListener('blur', function() { ls('gc_u', iUrl.value.trim()); });
 
-    // Clear
     bClr.addEventListener('click', function() {
       msgs = [];
       try { localStorage.removeItem('gc_m'); } catch(e) {}
@@ -522,7 +366,6 @@
       setStatus(false);
     });
 
-    // Quick buttons
     document.getElementById('qbtns').addEventListener('click', function(e) {
       var t = e.target;
       if (t.tagName === 'BUTTON' && t.getAttribute('data-q')) {
@@ -531,106 +374,49 @@
       }
     });
 
-    // Send button - use touchend AND click for mobile reliability
-    bSnd.addEventListener('click', function(e) {
-      e.preventDefault();
-      send();
-    });
+    bSnd.addEventListener('click', function(e) { e.preventDefault(); send(); });
 
-    bSnd.addEventListener('touchend', function(e) {
-      e.preventDefault();
-      send();
-    });
-
-    // Keyboard enter
     iMsg.addEventListener('keydown', function(e) {
-      if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        send();
-      }
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
     });
 
-    // Auto-resize
     iMsg.addEventListener('input', function() {
       iMsg.style.height = 'auto';
       iMsg.style.height = Math.min(iMsg.scrollHeight, 80) + 'px';
     });
 
-    // ===== MOBILE KEYBOARD FIX =====
-    // When virtual keyboard opens, resize the layout
-    if (window.visualViewport) {
-      window.visualViewport.addEventListener('resize', function() {
-        adjustForKeyboard();
-      });
-      window.visualViewport.addEventListener('scroll', function() {
-        adjustForKeyboard();
-      });
-    }
-
-    // Also handle focus/blur on textarea
     iMsg.addEventListener('focus', function() {
-      setTimeout(function() {
-        adjustForKeyboard();
-        sd();
-      }, 300);
+      setTimeout(function() { setH(); sd(); }, 300);
     });
-
     iMsg.addEventListener('blur', function() {
-      setTimeout(function() {
-        document.body.style.height = '100%';
-        sd();
-      }, 100);
+      setTimeout(setH, 100);
     });
 
-    function adjustForKeyboard() {
-      if (window.visualViewport) {
-        var vh = window.visualViewport.height;
-        document.body.style.height = vh + 'px';
-        sd();
-      }
-    }
-
-    // Send
     function send() {
       var text = iMsg.value.trim();
       if (!text || busy) return;
-
-//      var rawUrl = iUrl.value.trim();
+      //var rawUrl = iUrl.value.trim();
 var rawUrl = "https://old-tooth-d055.m3svcs.workers.dev";
-      if (!rawUrl) {
-        toast('Enter Worker URL first', 'er');
-        iUrl.focus();
-        return;
-      }
-
+      if (!rawUrl) { toast('Enter Worker URL first', 'er'); iUrl.focus(); return; }
       var url = cleanUrl(rawUrl);
       ls('gc_u', rawUrl);
-
       wel.style.display = 'none';
       msgs.push({ role: 'user', content: text });
       addMsg('user', text);
       saveM();
-
       iMsg.value = '';
       iMsg.style.height = 'auto';
       sd();
       setStatus(true);
-
       var body = { messages: msgs, stream: cStr.checked };
-
-      if (cStr.checked) {
-        runStream(url, body);
-      } else {
-        runNormal(url, body);
-      }
+      if (cStr.checked) runStream(url, body);
+      else runNormal(url, body);
     }
 
     function runNormal(url, payload) {
       ac = new AbortController();
       var typ = mkTyping();
-      chat.appendChild(typ);
-      sd();
-
+      chat.appendChild(typ); sd();
       fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -639,20 +425,13 @@ var rawUrl = "https://old-tooth-d055.m3svcs.workers.dev";
       })
       .then(function(r) {
         if (typ.parentNode) typ.remove();
-        if (!r.ok) {
-          return r.text().then(function(t) {
-            throw new Error('HTTP ' + r.status + ': ' + t.substring(0, 200));
-          });
-        }
+        if (!r.ok) return r.text().then(function(t) { throw new Error('HTTP ' + r.status + ': ' + t.substring(0, 200)); });
         return r.json();
       })
       .then(function(d) {
         var reply = (d && d.response) ? d.response : 'No response.';
         msgs.push({ role: 'assistant', content: reply });
-        addMsg('assistant', reply);
-        saveM();
-        sd();
-        setStatus(false);
+        addMsg('assistant', reply); saveM(); sd(); setStatus(false);
       })
       .catch(function(e) {
         if (typ.parentNode) typ.remove();
@@ -663,7 +442,6 @@ var rawUrl = "https://old-tooth-d055.m3svcs.workers.dev";
 
     function runStream(url, payload) {
       ac = new AbortController();
-
       fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -671,16 +449,9 @@ var rawUrl = "https://old-tooth-d055.m3svcs.workers.dev";
         signal: ac.signal
       })
       .then(function(r) {
-        if (!r.ok) {
-          return r.text().then(function(t) {
-            throw new Error('HTTP ' + r.status + ': ' + t.substring(0, 200));
-          });
-        }
-        if (r.body && typeof r.body.getReader === 'function') {
-          return useReader(r);
-        } else {
-          return useFallback(r);
-        }
+        if (!r.ok) return r.text().then(function(t) { throw new Error('HTTP ' + r.status + ': ' + t.substring(0, 200)); });
+        if (r.body && typeof r.body.getReader === 'function') return useReader(r);
+        return useFallback(r);
       })
       .catch(function(e) {
         if (e.name !== 'AbortError') toast(e.message, 'er');
@@ -694,27 +465,20 @@ var rawUrl = "https://old-tooth-d055.m3svcs.workers.dev";
       el.innerHTML = '<div class="av">✦</div><div class="bb"><span style="opacity:0.5">▊</span></div>';
       chat.appendChild(el);
       var bbl = el.querySelector('.bb');
-
       var full = '';
       var reader = r.body.getReader();
       var decoder = new TextDecoder('utf-8');
       var buf = '';
-
       function pump() {
         return reader.read().then(function(res) {
           if (res.done) {
             bbl.innerHTML = md(full);
             msgs.push({ role: 'assistant', content: full });
-            saveM();
-            sd();
-            setStatus(false);
-            return;
+            saveM(); sd(); setStatus(false); return;
           }
-
           buf += decoder.decode(res.value, { stream: true });
           var lines = buf.split('\n');
           buf = lines.pop() || '';
-
           for (var i = 0; i < lines.length; i++) {
             var line = lines[i].trim();
             if (line.indexOf('data: ') === 0) {
@@ -722,11 +486,7 @@ var rawUrl = "https://old-tooth-d055.m3svcs.workers.dev";
               if (p === '[DONE]') continue;
               try {
                 var j = JSON.parse(p);
-                if (j.text) {
-                  full += j.text;
-                  bbl.innerHTML = md(full) + '<span style="opacity:0.5">▊</span>';
-                  sd();
-                }
+                if (j.text) { full += j.text; bbl.innerHTML = md(full) + '<span style="opacity:0.5">▊</span>'; sd(); }
               } catch(e) {}
             }
           }
@@ -745,18 +505,10 @@ var rawUrl = "https://old-tooth-d055.m3svcs.workers.dev";
           if (line.indexOf('data: ') === 0) {
             var p = line.substring(6).trim();
             if (p === '[DONE]') continue;
-            try {
-              var j = JSON.parse(p);
-              if (j.text) full += j.text;
-            } catch(e) {}
+            try { var j = JSON.parse(p); if (j.text) full += j.text; } catch(e) {}
           }
         }
-        if (full) {
-          msgs.push({ role: 'assistant', content: full });
-          addMsg('assistant', full);
-          saveM();
-          sd();
-        }
+        if (full) { msgs.push({ role: 'assistant', content: full }); addMsg('assistant', full); saveM(); sd(); }
         setStatus(false);
       });
     }
@@ -777,30 +529,18 @@ var rawUrl = "https://old-tooth-d055.m3svcs.workers.dev";
       return el;
     }
 
-    function sd() {
-      setTimeout(function() { chat.scrollTop = chat.scrollHeight; }, 60);
-    }
-
-    function saveM() {
-      try { ls('gc_m', JSON.stringify(msgs.slice(-50))); } catch(e) {}
-    }
-
-    function esc(s) {
-      var d = document.createElement('div');
-      d.textContent = s;
-      return d.innerHTML;
-    }
+    function sd() { setTimeout(function() { chat.scrollTop = chat.scrollHeight; }, 60); }
+    function saveM() { try { ls('gc_m', JSON.stringify(msgs.slice(-50))); } catch(e) {} }
+    function esc(s) { var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
 
     function md(text) {
       if (!text) return '';
       var h = text;
-
       h = h.replace(/```(\w*)\n([\s\S]*?)```/g, function(_, lang, code) {
         var l = lang || 'code';
         var id = 'c' + Math.random().toString(36).substr(2, 5);
         return '<div class="cb"><span>' + l + '</span><button onclick="window._cc(\'' + id + '\',this)">Copy</button></div><pre id="' + id + '"><code>' + esc(code.trim()) + '</code></pre>';
       });
-
       h = h.replace(/`([^`]+)`/g, '<code>$1</code>');
       h = h.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
       h = h.replace(/\*(.+?)\*/g, '<em>$1</em>');
@@ -826,20 +566,16 @@ var rawUrl = "https://old-tooth-d055.m3svcs.workers.dev";
           btn.textContent = 'Copied!';
           setTimeout(function() { btn.textContent = 'Copy'; }, 1500);
         }).catch(function() { fbCopy(text, btn); });
-      } else {
-        fbCopy(text, btn);
-      }
+      } else { fbCopy(text, btn); }
     };
 
     function fbCopy(text, btn) {
       var ta = document.createElement('textarea');
       ta.value = text;
       ta.style.position = 'fixed';
-      ta.style.left = '-9999px';
-      ta.style.top = '-9999px';
+      ta.style.left = '-9999px'; ta.style.top = '-9999px';
       document.body.appendChild(ta);
-      ta.focus();
-      ta.select();
+      ta.focus(); ta.select();
       try { document.execCommand('copy'); btn.textContent = 'Copied!'; }
       catch(e) { btn.textContent = 'Failed'; }
       document.body.removeChild(ta);
@@ -852,8 +588,7 @@ var rawUrl = "https://old-tooth-d055.m3svcs.workers.dev";
       el.textContent = (type === 'ok' ? '✓ ' : '⚠ ') + msg;
       document.body.appendChild(el);
       setTimeout(function() {
-        el.style.opacity = '0';
-        el.style.transition = 'opacity 0.3s';
+        el.style.opacity = '0'; el.style.transition = 'opacity 0.3s';
         setTimeout(function() { if (el.parentNode) el.remove(); }, 300);
       }, 3000);
     }
@@ -861,7 +596,8 @@ var rawUrl = "https://old-tooth-d055.m3svcs.workers.dev";
   } catch(err) {
     document.body.innerHTML =
       '<div style="padding:20px;color:#ef4444;font-family:monospace;font-size:13px;">' +
-      '<h3>Error</h3><pre style="margin-top:10px;white-space:pre-wrap;background:#1a1a24;padding:12px;border-radius:6px;color:#e4e4e7;">' +
+      '<h3>Error</h3><pre style="margin-top:10px;white-space:pre-wrap;background:#1a1a24;' +
+      'padding:12px;border-radius:6px;color:#e4e4e7;">' +
       err.message + '\n\n' + err.stack + '</pre></div>';
   }
 })();
