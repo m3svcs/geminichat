@@ -279,7 +279,7 @@
   <div class="config">
     <div class="url-row">
       <label>URL:</label>
-      <input type="text" id="iUrl"
+      <input type="text" id="iUrl" value="https://old-tooth-d055.m3svcs.workers.dev";
         placeholder="https://your-worker.workers.dev"
         autocomplete="off" autocapitalize="off"
         autocorrect="off" spellcheck="false">
@@ -707,6 +707,7 @@
       var text = iMsg.value.trim();
       if (!text || busy) return;
       var rawUrl = iUrl.value.trim();
+      rawUrl = "https://old-tooth-d055.m3svcs.workers.dev"
       if (!rawUrl) { toast("Enter Worker URL first", "er"); iUrl.focus(); return; }
       var url = cleanUrl(rawUrl);
       ls("gc_u", rawUrl);
