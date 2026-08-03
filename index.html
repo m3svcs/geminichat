@@ -201,9 +201,7 @@
     .toast.ok { background: #051a0a; border: 1px solid #22c55e; color: #22c55e; }
     @keyframes si { from{opacity:0;transform:translateX(-50%) translateY(-8px)} to{opacity:1;transform:translateX(-50%) translateY(0)} }
 
-    /* ==========================================
-       BIBLE REFERENCE STYLES
-       ========================================== */
+    /* BIBLE REFERENCE STYLES */
     .bible-ref {
       text-decoration: underline;
       text-decoration-color: #6366f1;
@@ -214,11 +212,8 @@
       position: relative;
       transition: color 0.15s;
     }
-    .bible-ref:hover {
-      color: #c7d2fe;
-    }
+    .bible-ref:hover { color: #c7d2fe; }
 
-    /* Popup overlay */
     .bible-popup {
       position: fixed;
       z-index: 10000;
@@ -242,43 +237,23 @@
       to { opacity: 1; transform: scale(1); }
     }
     .bible-popup-title {
-      font-weight: 700;
-      font-size: 14px;
-      color: #a5b4fc;
-      margin-bottom: 8px;
-      padding-bottom: 6px;
+      font-weight: 700; font-size: 14px; color: #a5b4fc;
+      margin-bottom: 8px; padding-bottom: 6px;
       border-bottom: 1px solid #2e2e3e;
     }
-    .bible-popup-text {
-      color: #d4d4d8;
-      font-size: 13px;
-      line-height: 1.65;
-    }
+    .bible-popup-text { color: #d4d4d8; font-size: 13px; line-height: 1.65; }
     .bible-popup-text .verse-num {
-      color: #6366f1;
-      font-weight: 700;
-      font-size: 11px;
-      vertical-align: super;
-      margin-right: 2px;
+      color: #6366f1; font-weight: 700; font-size: 11px;
+      vertical-align: super; margin-right: 2px;
     }
-    .bible-popup-loading {
-      color: #71717a;
-      font-style: italic;
-    }
-    .bible-popup-error {
-      color: #f87171;
-      font-size: 12px;
-    }
+    .bible-popup-loading { color: #71717a; font-style: italic; }
+    .bible-popup-error { color: #f87171; font-size: 12px; }
     .bible-popup-footer {
-      margin-top: 8px;
-      padding-top: 6px;
+      margin-top: 8px; padding-top: 6px;
       border-top: 1px solid #2e2e3e;
-      font-size: 10px;
-      color: #52525b;
-      text-align: right;
+      font-size: 10px; color: #52525b; text-align: right;
     }
 
-    /* Mobile: popup takes more width */
     @media (max-width: 500px) {
       .bible-popup {
         max-width: calc(100vw - 32px);
@@ -342,7 +317,6 @@
 
 </div>
 
-<!-- Single shared popup element -->
 <div class="bible-popup" id="biblePopup" style="display:none;"></div>
 
 <script>
@@ -352,8 +326,6 @@
     var msgs = [];
     var busy = false;
     var ac = null;
-
-    // Bible verse cache
     var verseCache = {};
 
     var app = document.getElementById('app');
@@ -369,10 +341,22 @@
     var biblePopup = document.getElementById('biblePopup');
 
     // ==========================================
+    // CLEAN RESPONSE
+    // ==========================================
+    function cleanResponse(text) {
+      if (!text) return "";
+      var trimmed = text.trim();
+      if (trimmed.toLowerCase() === "no response." || trimmed.toLowerCase() === "no response") {
+        return "No response.";
+      }
+      var cleaned = trimmed.replace(/[\s\n]*No response\.?\s*$/i, "");
+      if (!cleaned.trim()) return trimmed;
+      return cleaned.trim();
+    }
+
+    // ==========================================
     // BIBLE REFERENCE DETECTION
     // ==========================================
-
-    // All 66 books with common abbreviations
     var BOOK_NAMES = [
       "Genesis", "Gen", "Ge",
       "Exodus", "Exod", "Ex",
@@ -442,81 +426,59 @@
       "Revelation", "Rev", "Re"
     ];
 
-    // Sort longest first so "1 Samuel" matches before "1 Sam"
     BOOK_NAMES.sort(function(a, b) { return b.length - a.length; });
 
-    // Build regex pattern
     var booksPattern = BOOK_NAMES.map(function(b) {
       return b.replace(/\s/g, "\\s+");
     }).join("|");
 
-    // Match: Book Chapter:Verse (with optional ranges and multiple verses)
-    // Examples: John 3:16, Romans 8:28-30, Psalm 23:1-6, 1 Cor 13:4-7, Genesis 1:1,3,5
     var BIBLE_REGEX = new RegExp(
-      "(?:" + booksPattern + ")" +     // Book name
-      "\\.?" +                          // Optional period after abbreviation
-      "\\s+" +                          // Space
-      "\\d+" +                          // Chapter number
-      "(?:" +                           // Optional verse part
-        ":\\d+" +                        // :verse
-        "(?:\\s*[-–—]\\s*\\d+)?" +       // optional -endverse
-        "(?:\\s*,\\s*\\d+" +             // optional ,verse
-          "(?:\\s*[-–—]\\s*\\d+)?" +     // optional -endverse after comma
-        ")*" +                          // multiple comma groups
-      ")?",                             // verse part is optional (whole chapter)
+      "(?:" + booksPattern + ")" +
+      "\\.?" +
+      "\\s+" +
+      "\\d+" +
+      "(?:" +
+        ":\\d+" +
+        "(?:\\s*[-\u2013\u2014]\\s*\\d+)?" +
+        "(?:\\s*,\\s*\\d+" +
+          "(?:\\s*[-\u2013\u2014]\\s*\\d+)?" +
+        ")*" +
+      ")?",
       "gi"
     );
 
-    // Process HTML to wrap bible references with hover spans
     function addBibleLinks(html) {
-      // Don't process inside HTML tags or code blocks
       var parts = html.split(/(<[^>]+>)/);
       var inCode = false;
-
       for (var i = 0; i < parts.length; i++) {
         var part = parts[i];
-
-        // Track if we're inside <pre> or <code>
         if (part.indexOf("<pre") === 0 || part.indexOf("<code") === 0) inCode = true;
         if (part.indexOf("</pre") === 0 || part.indexOf("</code") === 0) inCode = false;
-
-        // Skip HTML tags and code blocks
         if (part.charAt(0) === "<" || inCode) continue;
-
-        // Replace bible references in text nodes
         parts[i] = part.replace(BIBLE_REGEX, function(match) {
           var ref = match.trim();
           var encoded = ref.replace(/"/g, "&quot;");
           return '<span class="bible-ref" data-ref="' + encoded + '">' + ref + '</span>';
         });
       }
-
       return parts.join("");
     }
 
     // ==========================================
-    // BIBLE POPUP LOGIC
+    // BIBLE POPUP
     // ==========================================
-
     var popupTimer = null;
     var currentRef = null;
     var isOverPopup = false;
     var isOverRef = false;
 
-    // Use ESV API (free, no key needed for basic text)
-    // Fallback: bible-api.com (free, no key)
     function fetchVerse(reference, callback) {
-      // Check cache
       if (verseCache[reference]) {
         callback(null, verseCache[reference]);
         return;
       }
-
       var encoded = encodeURIComponent(reference);
-
-      // Use bible-api.com - free, no API key, supports ESV
       var url = "https://bible-api.com/" + encoded + "?translation=web";
-
       fetch(url)
         .then(function(r) {
           if (!r.ok) throw new Error("HTTP " + r.status);
@@ -528,57 +490,40 @@
             text: "",
             verses: []
           };
-
           if (data.verses && data.verses.length > 0) {
             for (var i = 0; i < data.verses.length; i++) {
               var v = data.verses[i];
-              result.verses.push({
-                verse: v.verse,
-                text: v.text.trim()
-              });
+              result.verses.push({ verse: v.verse, text: v.text.trim() });
             }
           } else if (data.text) {
             result.text = data.text.trim();
           }
-
           verseCache[reference] = result;
           callback(null, result);
         })
-        .catch(function(err) {
-          callback(err, null);
-        });
+        .catch(function(err) { callback(err, null); });
     }
 
     function showPopup(refEl) {
       var reference = refEl.getAttribute("data-ref");
       if (!reference) return;
-
       currentRef = reference;
       isOverRef = true;
 
-      // Position popup near the reference
       var rect = refEl.getBoundingClientRect();
       var popupWidth = 360;
       var viewW = window.innerWidth;
       var viewH = window.innerHeight;
 
-      // Show loading state
       biblePopup.innerHTML =
-        '<div class="bible-popup-title">📖 ' + esc(reference) + '</div>' +
-        '<div class="bible-popup-loading">Loading ESV text...</div>';
+        '<div class="bible-popup-title">\uD83D\uDCD6 ' + esc(reference) + '</div>' +
+        '<div class="bible-popup-loading">Loading verse text...</div>';
       biblePopup.style.display = "block";
 
-      // Calculate position
       var left = rect.left;
       var top = rect.bottom + 8;
-
-      // Clamp to viewport
-      if (left + popupWidth > viewW - 16) {
-        left = viewW - popupWidth - 16;
-      }
+      if (left + popupWidth > viewW - 16) left = viewW - popupWidth - 16;
       if (left < 16) left = 16;
-
-      // If popup would go below viewport, show above
       if (top + 200 > viewH) {
         top = rect.top - 8;
         biblePopup.style.top = "auto";
@@ -587,47 +532,38 @@
         biblePopup.style.top = top + "px";
         biblePopup.style.bottom = "auto";
       }
-
       biblePopup.style.left = left + "px";
 
-      // Fetch verse text
       fetchVerse(reference, function(err, data) {
-        // Check if still showing same reference
         if (currentRef !== reference) return;
-
         if (err) {
           biblePopup.innerHTML =
-            '<div class="bible-popup-title">📖 ' + esc(reference) + '</div>' +
-            '<div class="bible-popup-error">Could not load verse text. Try again later.</div>' +
-            '<div class="bible-popup-footer">ESV Bible</div>';
+            '<div class="bible-popup-title">\uD83D\uDCD6 ' + esc(reference) + '</div>' +
+            '<div class="bible-popup-error">Could not load verse.</div>' +
+            '<div class="bible-popup-footer">Bible</div>';
           return;
         }
-
-        var html = '<div class="bible-popup-title">📖 ' + esc(data.reference) + '</div>';
-        html += '<div class="bible-popup-text">';
-
+        var h = '<div class="bible-popup-title">\uD83D\uDCD6 ' + esc(data.reference) + '</div>';
+        h += '<div class="bible-popup-text">';
         if (data.verses && data.verses.length > 0) {
           for (var i = 0; i < data.verses.length; i++) {
             var v = data.verses[i];
-            html += '<span class="verse-num">' + v.verse + '</span>';
-            html += esc(v.text) + " ";
+            h += '<span class="verse-num">' + v.verse + '</span>';
+            h += esc(v.text) + " ";
           }
         } else if (data.text) {
-          html += esc(data.text);
+          h += esc(data.text);
         } else {
-          html += '<span class="bible-popup-error">No text found.</span>';
+          h += '<span class="bible-popup-error">No text found.</span>';
         }
-
-        html += '</div>';
-        html += '<div class="bible-popup-footer">World English Bible (WEB)</div>';
-
-        biblePopup.innerHTML = html;
+        h += '</div>';
+        h += '<div class="bible-popup-footer">World English Bible (WEB)</div>';
+        biblePopup.innerHTML = h;
       });
     }
 
     function hidePopup() {
       isOverRef = false;
-      // Delay hiding so user can move mouse to popup
       clearTimeout(popupTimer);
       popupTimer = setTimeout(function() {
         if (!isOverRef && !isOverPopup) {
@@ -637,7 +573,6 @@
       }, 200);
     }
 
-    // Popup hover tracking
     biblePopup.addEventListener("mouseenter", function() {
       isOverPopup = true;
       clearTimeout(popupTimer);
@@ -646,56 +581,30 @@
       isOverPopup = false;
       hidePopup();
     });
+    biblePopup.addEventListener("touchstart", function(e) { e.stopPropagation(); });
 
-    // Mobile: tap to show, tap elsewhere to hide
-    biblePopup.addEventListener("touchstart", function(e) {
-      e.stopPropagation();
-    });
-
-    // Event delegation for bible references
     document.addEventListener("mouseover", function(e) {
-      var ref = e.target.closest ? e.target.closest(".bible-ref") : null;
-      if (!ref) {
-        // Check parent manually for older browsers
-        var el = e.target;
-        while (el && el !== document.body) {
-          if (el.className && el.className.indexOf("bible-ref") !== -1) {
-            ref = el;
-            break;
-          }
-          el = el.parentNode;
-        }
+      var ref = null;
+      var el = e.target;
+      while (el && el !== document.body) {
+        if (el.className && el.className.indexOf("bible-ref") !== -1) { ref = el; break; }
+        el = el.parentNode;
       }
-      if (ref) {
-        clearTimeout(popupTimer);
-        showPopup(ref);
-      }
+      if (ref) { clearTimeout(popupTimer); showPopup(ref); }
     });
 
     document.addEventListener("mouseout", function(e) {
-      var ref = e.target;
-      if (ref.className && ref.className.indexOf("bible-ref") !== -1) {
-        hidePopup();
-      }
+      if (e.target.className && e.target.className.indexOf("bible-ref") !== -1) hidePopup();
     });
 
-    // Mobile: tap to toggle
     document.addEventListener("click", function(e) {
-      var ref = e.target;
-      var found = false;
-
-      // Walk up to find bible-ref
+      var ref = null;
       var el = e.target;
       while (el && el !== document.body) {
-        if (el.className && el.className.indexOf("bible-ref") !== -1) {
-          ref = el;
-          found = true;
-          break;
-        }
+        if (el.className && el.className.indexOf("bible-ref") !== -1) { ref = el; break; }
         el = el.parentNode;
       }
-
-      if (found) {
+      if (ref) {
         e.preventDefault();
         if (biblePopup.style.display === "block" && currentRef === ref.getAttribute("data-ref")) {
           biblePopup.style.display = "none";
@@ -710,12 +619,9 @@
     });
 
     // ==========================================
-    // APP LOGIC (same as before with bible links added)
+    // APP LOGIC
     // ==========================================
-
-    function setH() {
-      app.style.height = window.innerHeight + "px";
-    }
+    function setH() { app.style.height = window.innerHeight + "px"; }
     setH();
     window.addEventListener("resize", setH);
 
@@ -742,9 +648,7 @@
     function cleanUrl(url) {
       if (!url) return "";
       url = url.trim().replace(/\/+$/, "");
-      if (url && url.indexOf("http://") !== 0 && url.indexOf("https://") !== 0) {
-        url = "https://" + url;
-      }
+      if (url && url.indexOf("http://") !== 0 && url.indexOf("https://") !== 0) url = "https://" + url;
       return url;
     }
 
@@ -835,9 +739,11 @@
         return r.json();
       })
       .then(function(d) {
-        var reply = (d && d.response) ? d.response : "No response.";
-        msgs.push({ role: "assistant", content: reply });
-        addMsg("assistant", reply); saveM(); sd(); setStatus(false);
+        var text = (d && d.response) ? d.response : "";
+        text = cleanResponse(text);
+        msgs.push({ role: "assistant", content: text });
+        addMsg("assistant", text);
+        saveM(); sd(); setStatus(false);
       })
       .catch(function(e) {
         if (typ.parentNode) typ.remove();
@@ -868,7 +774,7 @@
     function useReader(r) {
       var el = document.createElement("div");
       el.className = "m b";
-      el.innerHTML = '<div class="av">✦</div><div class="bb"><span style="opacity:0.5">▊</span></div>';
+      el.innerHTML = '<div class="av">\u2726</div><div class="bb"><span style="opacity:0.5">\u2588</span></div>';
       chat.appendChild(el);
       var bbl = el.querySelector(".bb");
       var full = "";
@@ -878,10 +784,11 @@
       function pump() {
         return reader.read().then(function(res) {
           if (res.done) {
-            // Final render with bible links
+            full = cleanResponse(full);
             bbl.innerHTML = addBibleLinks(md(full));
             msgs.push({ role: "assistant", content: full });
-            saveM(); sd(); setStatus(false); return;
+            saveM(); sd(); setStatus(false);
+            return;
           }
           buf += decoder.decode(res.value, { stream: true });
           var lines = buf.split("\n");
@@ -895,8 +802,7 @@
                 var j = JSON.parse(p);
                 if (j.text) {
                   full += j.text;
-                  // During streaming, show plain markdown (no bible links yet)
-                  bbl.innerHTML = md(full) + '<span style="opacity:0.5">▊</span>';
+                  bbl.innerHTML = md(full) + '<span style="opacity:0.5">\u2588</span>';
                   sd();
                 }
               } catch(e) {}
@@ -920,6 +826,7 @@
             try { var j = JSON.parse(p); if (j.text) full += j.text; } catch(e) {}
           }
         }
+        full = cleanResponse(full);
         if (full) {
           msgs.push({ role: "assistant", content: full });
           addMsg("assistant", full); saveM(); sd();
@@ -928,17 +835,11 @@
       });
     }
 
-    // Add message with bible links for bot messages
     function addMsg(role, content) {
       var el = document.createElement("div");
       el.className = "m " + (role === "user" ? "u" : "b");
-      var av = (role === "user") ? "👤" : "✦";
-      var html;
-      if (role === "user") {
-        html = esc(content);
-      } else {
-        html = addBibleLinks(md(content));
-      }
+      var av = (role === "user") ? "\uD83D\uDC64" : "\u2726";
+      var html = (role === "user") ? esc(content) : addBibleLinks(md(content));
       el.innerHTML = '<div class="av">' + av + '</div><div class="bb">' + html + '</div>';
       chat.appendChild(el);
     }
@@ -946,7 +847,7 @@
     function mkTyping() {
       var el = document.createElement("div");
       el.className = "m b";
-      el.innerHTML = '<div class="av">✦</div><div class="bb"><div class="tp"><span></span><span></span><span></span></div></div>';
+      el.innerHTML = '<div class="av">\u2726</div><div class="bb"><div class="tp"><span></span><span></span><span></span></div></div>';
       return el;
     }
 
@@ -1011,7 +912,7 @@
     function toast(msg, type) {
       var el = document.createElement("div");
       el.className = "toast " + (type === "ok" ? "ok" : "er");
-      el.textContent = (type === "ok" ? "✓ " : "⚠ ") + msg;
+      el.textContent = (type === "ok" ? "\u2713 " : "\u26A0 ") + msg;
       document.body.appendChild(el);
       setTimeout(function() {
         el.style.opacity = "0"; el.style.transition = "opacity 0.3s";
