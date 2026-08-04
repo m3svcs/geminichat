@@ -86,6 +86,17 @@
     }
     .chk-wrap input[type="checkbox"] { accent-color: #6366f1; width: 15px; height: 15px; }
 
+    #promptSelector {
+      background: #0f0f13;
+      border: 1px solid #2e2e3e;
+      color: #e4e4e7;
+      padding: 7px 8px;
+      border-radius: 6px;
+      font-size: 12px;
+      cursor: pointer;
+    }
+    #promptSelector:focus { outline: none; border-color: #6366f1; }
+
     .chat {
       flex: 1; overflow-y: auto; padding: 14px;
       display: flex; flex-direction: column; gap: 10px;
@@ -201,7 +212,6 @@
     .toast.ok { background: #051a0a; border: 1px solid #22c55e; color: #22c55e; }
     @keyframes si { from{opacity:0;transform:translateX(-50%) translateY(-8px)} to{opacity:1;transform:translateX(-50%) translateY(0)} }
 
-    /* BIBLE REFERENCE STYLES */
     .bible-ref {
       text-decoration: underline;
       text-decoration-color: #6366f1;
@@ -279,11 +289,17 @@
   <div class="config">
     <div class="url-row">
       <label>URL:</label>
-      <input type="text" id="iUrl" value="https://old-tooth-d055.m3svcs.workers.dev";
+      <input type="text" id="iUrl"
         placeholder="https://old-tooth-d055.m3svcs.workers.dev"
         autocomplete="off" autocapitalize="off"
         autocorrect="off" spellcheck="false">
     </div>
+    <select id="promptSelector">
+      <option value="default">General</option>
+      <option value="bible">Bible Study</option>
+      <option value="coding">Coding</option>
+      <option value="teacher">Teacher</option>
+    </select>
     <label class="chk-wrap">
       <input type="checkbox" id="cStr" checked> Stream
     </label>
@@ -293,7 +309,7 @@
     <div class="welcome" id="wel">
       <div class="ic">✦</div>
       <h2>Gemini Chat</h2>
-      <p>Enter your Cloudflare Worker URL above, then type a message below.</p>
+      <p>Enter your Cloudflare Worker URL above, select a mode, then type a message below.</p>
       <div class="qbtns" id="qbtns">
         <button data-q="Explain after life in simple terms">After Life Concepts</button>
         <button data-q="Is there a Supreme Being who created the universe?">Creation of the universe</button>
@@ -339,6 +355,20 @@
     var sDot = document.getElementById('sDot');
     var sLabel = document.getElementById('sLabel');
     var biblePopup = document.getElementById('biblePopup');
+    var promptSelector = document.getElementById('promptSelector');
+
+    // ==========================================
+    // PROMPT SELECTOR
+    // ==========================================
+    promptSelector.value = ls("gc_pid") || "default";
+
+    promptSelector.addEventListener("change", function() {
+      ls("gc_pid", promptSelector.value);
+    });
+
+    function getSelectedPromptId() {
+      return promptSelector.value || "default";
+    }
 
     // ==========================================
     // CLEAN RESPONSE
@@ -706,8 +736,8 @@
     function send() {
       var text = iMsg.value.trim();
       if (!text || busy) return;
-      var rawUrl = iUrl.value.trim();
-      rawUrl = "https://old-tooth-d055.m3svcs.workers.dev"
+      var rawUrl = "https://old-tooth-d055.m3svcs.workers.dev";
+
       if (!rawUrl) { toast("Enter Worker URL first", "er"); iUrl.focus(); return; }
       var url = cleanUrl(rawUrl);
       ls("gc_u", rawUrl);
@@ -719,7 +749,13 @@
       iMsg.style.height = "auto";
       sd();
       setStatus(true);
-      var body = { messages: msgs, stream: cStr.checked };
+
+      var body = {
+        messages: msgs,
+        stream: cStr.checked,
+        promptId: getSelectedPromptId()
+      };
+
       if (cStr.checked) runStream(url, body);
       else runNormal(url, body);
     }
